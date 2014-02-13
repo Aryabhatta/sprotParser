@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <set>
 #include <boost/algorithm/string.hpp>
 #include "subcelEntry.h"
 #include "organism.h"
@@ -47,6 +48,9 @@ int main(int argc, char ** argv) {
 	vector<organism> orgSummary;
 	map<string,int> orgMap; //  map <OrgID, vectorIndex>
 	
+	// check for completeness
+	set<string> HumanProteins;
+	
 	// write header for Table 1
 	outputFilet1 << "AC" << "\t" << "PubMedId" << "\t" << "LocClass" << endl;
 	outputFilet1 << "---------------------------------------------------------" << endl;
@@ -62,36 +66,15 @@ int main(int argc, char ** argv) {
 	
 	for(int i=1; i<argc; i++) {
 		string fileName = argv[i];
-	//	string outFileNamet1 = fileName.substr(0,fileName.find(".dat",0)) + "_Table1.dat";
-	//	string outFileNamet2 = fileName.substr(0,fileName.find(".dat",0)) + "_Table2.dat";
 		
 		cout << "Parsing sprot file " << fileName << " !!!" << endl;
 		
 		ifstream inputFile(fileName.data());
-	//	ofstream outputFilet1(outFileNamet1.data());
-	//	ofstream outputFile(outFileNamet2.data());
-	//	ofstream outputFileSum("orgSummary.dat");
 		
 		if(!inputFile.is_open()) {
 			cout << "Error opening input file !!" << endl;
 			return -1;
 		}
-	//	if(!outputFilet1.is_open()) {
-	//		cout << "Error opening output file for Table 1 !!" << endl;
-	//		return -1;		
-	//	}
-	//	if(!outputFile.is_open()) {
-	//		cout << "Error opening output file !!" << endl;
-	//		return -1;
-	// 	}
-	//	if(!outputFileSum.is_open()) {
-	//		cout << "Error opening output Summary file !!" << endl;
-	//		return -1;		
-	//	}
-		
-		// data structures for summary
-	//	vector<organism> orgSummary;
-	//	map<string,int> orgMap; //  map <OrgID, vectorIndex>
 		
 		string inputLine;
 		
@@ -107,19 +90,6 @@ int main(int argc, char ** argv) {
 		string locIdentifier = "CC -!- SUBCELLULAR LOCATION";
 		
 		subcelEntry entry;
-		
-	//	// write header for Table 1
-	//	outputFilet1 << "AC" << "\t" << "PubMedId" << "\t" << "LocClass" << endl;
-	//	outputFilet1 << "---------------------------------------------------------" << endl;
-	//	
-	//	// write header
-	//	outputFile << "AC" << "\t" << "ID" << "\t" << "Organism" << "\t" << "OrganismId" << "\t";
-	//	outputFile << "#Localizations_nonExp" << "\t" << "#Localizations_exp" << "\t" <<  "Localization" << endl;
-	//	outputFile << "--------------------------------------------------------------------------------" << endl;
-	//	
-	//	// write header for Summary file
-	//	outputFileSum << "Organism" << "\t" << "OrganismId" << "\t" << "#Localizations_exp" << "\t" << "#Localizations_nonExp" << "\t" << "#No_Localizations" << endl;
-	//	outputFileSum << "---------------------------------------------------------------------------------------------" << endl;
 		
 		string RC="";
 		
@@ -145,10 +115,16 @@ int main(int argc, char ** argv) {
 					
 					string id = strs[1];				
 					entry.setID(id);
+					
+					//DEBUG - TO REMOVE
+					if(id == "TM262_HUMAN") {
+						cout << "Debug Point !" << endl;
+					}
+				
 					currentState = checkAC;
 				}
 				
-			} else if(currentState == checkAC) {
+			} /*else*/ if(currentState == checkAC) {
 				
 				if(inputLine.substr(0,3) == acIdentifier) {
 					std::vector<string> strs;
@@ -157,10 +133,21 @@ int main(int argc, char ** argv) {
 					string ac = strs[1];				
 					ac = ac.replace(ac.find_first_of(';'),1,"");
 					entry.setAC(ac);
+					if(HumanProteins.count(ac) != 1) {
+						HumanProteins.insert(ac);	
+					} else {
+						cout << "Duplicate Entry : " << ac << endl;
+					}
+					
+					
+					//debug - replace later
+					if(ac == "Q96GE9") {
+						cout << "Debug Point !" << endl;
+					}
 					currentState = nameOrganism;
 				}
 				
-			} else if(currentState == nameOrganism) {
+			} /*else*/ if(currentState == nameOrganism) {
 				
 				if(inputLine.substr(0,3) == orgIdentifier) {
 					string orgName = inputLine.substr(orgIdentifier.length(), string::npos);
@@ -170,7 +157,7 @@ int main(int argc, char ** argv) {
 					currentState = idOrganism;
 				}
 				
-			} else if(currentState == idOrganism) {
+			} /*else*/ if(currentState == idOrganism) {
 				
 				if(inputLine.substr(0,3) == orgIdIdentifier) {
 					std::vector<string> strs;
@@ -196,18 +183,12 @@ int main(int argc, char ** argv) {
 					currentState = pubmedIDs;
 				}
 							
-			} else if(currentState == pubmedIDs) {
+			} /*else*/ if(currentState == pubmedIDs) {
 				
 				if(inputLine.substr(0,3) != "CC ") {
 					
 					if(pubmedIdentifier == "RX " && inputLine.substr(0,3) == "RC " ) {
 						RC = "";
-//						std::vector<string> strs;
-//						boost::split(strs, inputLine, boost::is_any_of(" "));
-//						
-//						string tissue = strs[1];
-//						std::vector<string> strs1;
-//						boost::split(strs1, tissue, boost::is_any_of("="));
 						
 						if(inputLine.find('=',0) != string::npos) {
 							RC = inputLine.substr(inputLine.find_first_of('=')+1,string::npos);
@@ -215,13 +196,6 @@ int main(int argc, char ** argv) {
 								RC.replace(RC.find_last_of(';'),1,"");	
 							}
 						}
-						
-//						if(strs1[0]=="TISSUE") {
-//							RC = strs1[1];
-//							if(RC.find(";",0) != string::npos ) {
-//								RC.replace(RC.find_last_of(';'),1,"");	
-//							}						
-//						}					
 					}
 					
 					if(inputLine.substr(0,3) == pubmedIdentifier) {
@@ -281,7 +255,7 @@ int main(int argc, char ** argv) {
 					currentState = readLocalization;
 				}
 				
-			} else if(currentState == readLocalization) {
+			} /*else*/ if(currentState == readLocalization) {
 				
 				if(inputLine.substr(0,locIdentifier.length()) == locIdentifier) {
 					
@@ -386,11 +360,7 @@ int main(int argc, char ** argv) {
 				if(inputLine.substr(0,3) != "CC ") {
 					// could not find subcellular localization for this protein
 					currentState = checkID; // back to searching for ID
-					
-					// write to output file
-	//				outputFile << entry.toString() << endl;
-	//				cout << entry.toString() << endl;
-	
+						
 					if(orgMap.count(entry.getOrgId()) == 1) { 
 						// CC -!- not found
 						orgSummary[orgMap[entry.getOrgId()]].incNoLoc();
@@ -409,6 +379,30 @@ int main(int argc, char ** argv) {
 	for(iter=orgSummary.begin();iter != orgSummary.end(); ++iter) {
 		outputFileSum << (*iter).toString();
 	}
+	
+	// check for completeness
+	ifstream referenceFile("mammals_list.dat");
+	if(! referenceFile.is_open()) {
+		cout << "Error opening reference file" << endl;
+	}
+	string inputLine;
+	set<string> listProteins;
+	cout << "Following proteins are not found !" << endl;
+	while( getline(referenceFile,inputLine) ) {
+		if(listProteins.count(inputLine) != 1) {
+			listProteins.insert(inputLine);
+		} else {
+			cout << "Duplicate Entry in list: " << inputLine << endl;
+		}
+			
+		if(HumanProteins.count(inputLine) != 1) {
+			cout << inputLine << endl;
+		}
+	}
+	
+	
+	referenceFile.close();
+		
 
 	outputFilet1.close();
 	outputFile.close();
