@@ -66,6 +66,7 @@ string subcelEntry::getPubMedEntries() {
 	vector<string>::iterator iter;
 	for(iter=pubmedIDs.begin(); iter!=pubmedIDs.end(); ++iter ) {
 		pubEntry.append(this->AC + "\t");
+		pubEntry.append(this->OS_ID + "\t");
 		
 		string token = *iter;
 		

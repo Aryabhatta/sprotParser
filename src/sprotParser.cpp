@@ -16,7 +16,7 @@
 using namespace std;
 using namespace boost;
 
-int main(int argc, char ** argv) {
+int parseSprot(int argc, char ** argv) {
 	
 	if(argc < 2) {
 		cout << "Usage:" << endl << endl;
@@ -25,11 +25,11 @@ int main(int argc, char ** argv) {
 		return 0;
 	}
 
-	string outFileNamet1 = "Eukaryote_Table1.dat";
-	string outFileNamet2 = "Eukaryote_Table2.dat";
+	string outFileNamet1 = "Archaea_Table1.dat";
+	string outFileNamet2 = "Archaea_Table2.dat";
 	ofstream outputFilet1(outFileNamet1.data());
 	ofstream outputFile(outFileNamet2.data());
-	ofstream outputFileSum("Eukaryote_Summary.dat");
+	ofstream outputFileSum("Archaea_Summary.dat");
 
 	if(!outputFilet1.is_open()) {
 		cout << "Error opening output file for Table 1 !!" << endl;
@@ -52,7 +52,7 @@ int main(int argc, char ** argv) {
 	set<string> HumanProteins;
 	
 	// write header for Table 1
-	outputFilet1 << "AC" << "\t" << "PubMedId" << "\t" << "LocClass" << endl;
+	outputFilet1 << "AC" << "\t" << "OrganismId" << "\t" << "PubMedId" << "\t" << "LocClass" << endl;
 	outputFilet1 << "---------------------------------------------------------" << endl;
 	
 	// write header
@@ -116,11 +116,6 @@ int main(int argc, char ** argv) {
 					string id = strs[1];				
 					entry.setID(id);
 					
-					//DEBUG - TO REMOVE
-					if(id == "TM262_HUMAN") {
-						cout << "Debug Point !" << endl;
-					}
-				
 					currentState = checkAC;
 				}
 				
@@ -133,17 +128,12 @@ int main(int argc, char ** argv) {
 					string ac = strs[1];				
 					ac = ac.replace(ac.find_first_of(';'),1,"");
 					entry.setAC(ac);
-					if(HumanProteins.count(ac) != 1) {
-						HumanProteins.insert(ac);	
-					} else {
-						cout << "Duplicate Entry : " << ac << endl;
-					}
+//					if(HumanProteins.count(ac) != 1) {
+//						HumanProteins.insert(ac);	
+//					} else {
+//						cout << "Duplicate Entry : " << ac << endl;
+//					}
 					
-					
-					//debug - replace later
-					if(ac == "Q96GE9") {
-						cout << "Debug Point !" << endl;
-					}
 					currentState = nameOrganism;
 				}
 				
@@ -255,11 +245,14 @@ int main(int argc, char ** argv) {
 					currentState = readLocalization;
 				}
 				
-			} /*else*/ if(currentState == readLocalization) {
+			}  
+			if(currentState == readLocalization) {
 				
+				bool noLocEntrydone = false;
 				if(inputLine.substr(0,locIdentifier.length()) == locIdentifier) {
 					
-					string subCelText = "";
+					string subCelText = "";					
+					
 					while(true) {
 						subCelText.append(inputLine.substr(2, string::npos));
 						getline(inputFile,inputLine);
@@ -300,7 +293,9 @@ int main(int argc, char ** argv) {
 							
 							if(orgMap.count(entry.getOrgId()) == 1) {
 								orgSummary[orgMap[entry.getOrgId()]].incNonExpLoc();
-							}						
+							} else {
+								cout << "Warning: OrgMap doesn't contain " << entry.getOrgId() << endl;
+							}
 							continue;
 						}
 						if(token.find("(By similarity)",0) != string::npos ) {
@@ -309,6 +304,8 @@ int main(int argc, char ** argv) {
 							
 							if(orgMap.count(entry.getOrgId()) == 1) {
 								orgSummary[orgMap[entry.getOrgId()]].incNonExpLoc();
+							} else {
+								cout << "Warning: OrgMap doesn't contain " << entry.getOrgId() << endl;
 							}
 							continue;
 						}
@@ -318,6 +315,8 @@ int main(int argc, char ** argv) {
 	
 							if(orgMap.count(entry.getOrgId()) == 1) {
 								orgSummary[orgMap[entry.getOrgId()]].incNonExpLoc();
+							} else {
+								cout << "Warning: OrgMap doesn't contain " << entry.getOrgId() << endl;
 							}						
 							continue;
 						}
@@ -327,6 +326,8 @@ int main(int argc, char ** argv) {
 	
 							if(orgMap.count(entry.getOrgId()) == 1) {
 								orgSummary[orgMap[entry.getOrgId()]].incNonExpLoc();
+							} else {
+								cout << "Warning: OrgMap doesn't contain " << entry.getOrgId() << endl;
 							}
 							continue;
 						}
@@ -337,22 +338,25 @@ int main(int argc, char ** argv) {
 						
 						if(orgMap.count(entry.getOrgId()) == 1) {
 							orgSummary[orgMap[entry.getOrgId()]].incExpLoc();
+						} else {
+							cout << "Warning: OrgMap doesn't contain " << entry.getOrgId() << endl;
 						}
 					}
 					
 					// write to output file
 					if(entry.getExpLoc() != 0 || entry.getNonExpLoc() != 0) {
+
 						//write pubmedId's
 						outputFilet1 << entry.getPubMedEntries();
-						
 						// write Table 2
 						outputFile << entry.toString() << endl;
-		//				cout << entry.toString() << endl;
+		
 					} else {
 						// CC -!- SUBCE.. section is present but no entry
 						if(orgMap.count(entry.getOrgId()) == 1) {
 							orgSummary[orgMap[entry.getOrgId()]].incNoLoc();
-						}					
+							noLocEntrydone = true;
+						}											
 					}
 					entry.clear();
 				}
@@ -360,11 +364,15 @@ int main(int argc, char ** argv) {
 				if(inputLine.substr(0,3) != "CC ") {
 					// could not find subcellular localization for this protein
 					currentState = checkID; // back to searching for ID
-						
-					if(orgMap.count(entry.getOrgId()) == 1) { 
-						// CC -!- not found
-						orgSummary[orgMap[entry.getOrgId()]].incNoLoc();
-					}					
+				
+					if(!noLocEntrydone) {
+						if(orgMap.count(entry.getOrgId()) == 1) { 
+							// CC -!- not found
+							orgSummary[orgMap[entry.getOrgId()]].incNoLoc();
+						}
+					} else {
+						cout << "Warning: Making an entry twice for no location !" << endl;
+					}
 					
 					entry.clear();
 				}			
@@ -381,32 +389,123 @@ int main(int argc, char ** argv) {
 	}
 	
 	// check for completeness
-	ifstream referenceFile("mammals_list.dat");
-	if(! referenceFile.is_open()) {
-		cout << "Error opening reference file" << endl;
-	}
-	string inputLine;
-	set<string> listProteins;
-	cout << "Following proteins are not found !" << endl;
-	while( getline(referenceFile,inputLine) ) {
-		if(listProteins.count(inputLine) != 1) {
-			listProteins.insert(inputLine);
-		} else {
-			cout << "Duplicate Entry in list: " << inputLine << endl;
-		}
-			
-		if(HumanProteins.count(inputLine) != 1) {
-			cout << inputLine << endl;
-		}
-	}
-	
-	
-	referenceFile.close();
+//	ifstream referenceFile("mammals_list.dat");
+//	if(! referenceFile.is_open()) {
+//		cout << "Error opening reference file" << endl;
+//	}
+//	string inputLine;
+//	set<string> listProteins;
+//	cout << "Following proteins are not found !" << endl;
+//	while( getline(referenceFile,inputLine) ) {
+//		if(listProteins.count(inputLine) != 1) {
+//			listProteins.insert(inputLine);
+//		} else {
+//			cout << "Duplicate Entry in list: " << inputLine << endl;
+//		}
+//			
+//		if(HumanProteins.count(inputLine) != 1) {
+//			cout << inputLine << endl;
+//		}
+//	}	
+//	referenceFile.close();
 		
 
 	outputFilet1.close();
 	outputFile.close();
 	outputFileSum.close();
 	
+	return 0;
+}
+
+string processLine(string inputLine) {
+	string newLine;
+	while(inputLine.find("  ",0) != string::npos ) {
+		inputLine.replace(inputLine.find("  ",0),2," ");
+	}
+	
+	newLine.append(inputLine);
+	return newLine;
+}
+
+void countPotentialProteins( string filename ) {
+	
+//	set<string> uniprotProteins;
+//	
+//	ifstream referenceFile("human_list.dat");
+//	if(!referenceFile.is_open()) {
+//		cout << "Error opening file !" << endl;
+//	}
+//	string newLine;
+//	while(getline(referenceFile, newLine)) {
+//		uniprotProteins.insert(newLine);
+//	}
+//	
+//	cout << "The size of proteins from Uniprot is : " << uniprotProteins.size() << endl;	
+//	
+//	
+//	referenceFile.close();
+	
+	ifstream inputFile(filename.data());
+	if(!inputFile.is_open())
+	{
+		cout << "Error opening input file " << filename << " !" << endl << endl;
+	}
+	string inputLine;
+	
+	string identifierID = "AC ";
+	string identifierLoc = "CC -!- SUBCELLULAR LOCATION";
+	string identifierLocRed = "CC -!- SUBCELLULAR LOCATION: Note";
+	string checkIdent = identifierID;
+	
+	
+	int noProteins = 0;
+	bool idFound = false;
+	bool locFound = false;
+	string ac;
+	while(getline(inputFile,inputLine)){
+		inputLine = processLine(inputLine);
+		
+		if(inputLine.substr(0,3) == identifierID && checkIdent == identifierLoc) {
+			// this means that subcellular location is not found for this particular ID
+			checkIdent = identifierID;
+		}		
+		
+		if(inputLine.substr(0,checkIdent.length()) == checkIdent ) {
+			if(checkIdent == identifierID) {
+				std::vector<string> strs;
+				boost::split(strs, inputLine, boost::is_any_of(" "));
+				ac = strs[1];				
+				ac = ac.replace(ac.find_first_of(';'),1,"");
+				
+				while(true) {
+					getline(inputFile, inputLine);
+					if( inputLine.substr(0,checkIdent.length()) != checkIdent ) {
+						break;
+					}
+				}
+				checkIdent = identifierLoc;
+			} else if(checkIdent == identifierLoc) {
+				checkIdent = identifierID;
+				
+				if( inputLine.substr(0, identifierLocRed.length()) != identifierLocRed) {
+					noProteins ++;	
+				}				
+//				if(uniprotProteins.count(ac) != 1) {
+//					cout << "New Protein ?:" << ac << endl;
+//				}
+			}
+	}
+		}
+	
+	// Print results
+	cout << endl << "Total No of potential proteins found in the file " << filename << ": " << noProteins << endl;
+	
+	inputFile.close();
+}
+
+int main(int argc, char ** argv) {
+
+	countPotentialProteins("uniprot_sprot_archaea.dat");
+	parseSprot(argc, argv);
 	return 0;
 }
