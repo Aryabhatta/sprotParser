@@ -25,11 +25,11 @@ int parseSprot(int argc, char ** argv) {
 		return 0;
 	}
 
-	string outFileNamet1 = "Archaea_Table1.dat";
-	string outFileNamet2 = "Archaea_Table2.dat";
+	string outFileNamet1 = "Eukaryota_Table1.dat";
+	string outFileNamet2 = "Eukaryota_Table2.dat";
 	ofstream outputFilet1(outFileNamet1.data());
 	ofstream outputFile(outFileNamet2.data());
-	ofstream outputFileSum("Archaea_Summary.dat");
+	ofstream outputFileSum("Eukaryota_Summary.dat");
 
 	if(!outputFilet1.is_open()) {
 		cout << "Error opening output file for Table 1 !!" << endl;
@@ -128,6 +128,9 @@ int parseSprot(int argc, char ** argv) {
 					string ac = strs[1];				
 					ac = ac.replace(ac.find_first_of(';'),1,"");
 					entry.setAC(ac);
+					if( ac=="O29010"){
+						cout << "Debug Point" << endl;
+					}
 //					if(HumanProteins.count(ac) != 1) {
 //						HumanProteins.insert(ac);	
 //					} else {
@@ -408,7 +411,6 @@ int parseSprot(int argc, char ** argv) {
 //		}
 //	}	
 //	referenceFile.close();
-		
 
 	outputFilet1.close();
 	outputFile.close();
@@ -505,7 +507,7 @@ void countPotentialProteins( string filename ) {
 
 int main(int argc, char ** argv) {
 
-	countPotentialProteins("uniprot_sprot_archaea.dat");
+//	countPotentialProteins("uniprot_sprot_archaea.dat");
 	parseSprot(argc, argv);
 	return 0;
 }
